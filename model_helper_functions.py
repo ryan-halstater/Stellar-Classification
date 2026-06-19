@@ -3,20 +3,51 @@
 
 #save_model_results runs evaluate_classifier and saves it to a csv file
 #evaluate_classifier is a helper function that computes various metrics for a fitted sklearn classifier
+
 #export_model_results_to_markdown converts the csv file to markdown files which can easily be mapped to a table, with Obsidian in mind
 
+#run for fit and valid data, just name such that _fit and _valid are in the model name
 
 #note: this is completely untested
 
 #ToDo:
-#create obsidian file
+#create obsidian file + folder
+#add additional result visualizations
+#function to add custom hyperparameter fields to model md results or model-specific csv, map out flow
 #view_model_results is a helper function that loads and displays the results from the csv file, unpacking matrices as needed
 #convert_to_markdown is a meta function that takes saved model results and puts them in a markdown table, with the confusion matrix and get_class fully separated
+
 
 import pandas as pd
 import json
 import os
 
+
+###
+# data cleaning functions
+###
+
+#convert categorical variables in df to dummy variables
+def cat_to_dummy(df,numericize=True):
+    spectral = pd.get_dummies(df['spectral_type'], dtype=int)
+    galaxy_pop = pd.get_dummies(df['galaxy_population'], dtype=int)
+    
+    # Drop original categorical columns and concatenate dummy variables
+    new_df = df.drop(columns=['spectral_type', 'galaxy_population'])
+    new_df = pd.concat([new_df, spectral, galaxy_pop], axis=1)
+
+    class_mapping = {'GALAXY': 0, 'QSO': 1, 'STAR': 2}
+    new_df['class'] = new_df['class'].map(class_mapping)
+    #reclassify all as numeric, may need to roll this back depending on if models treat as categorical or not
+    if(numericize):
+        new_df = new_df.apply(pd.to_numeric)
+    
+    return new_df
+
+
+###
+# model-saving functions
+###
 
 def save_model_results(
     model,
@@ -26,6 +57,7 @@ def save_model_results(
     model_description: str = "",
     labels=None,
     csv_path: str = "raw_model_results.csv",
+    output_dir = "model_outputs/"
 ):
     """
     Evaluate a fitted sklearn classifier and persist results to a CSV.
@@ -79,6 +111,8 @@ def save_model_results(
         updated_df = new_row_df
 
     updated_df.to_csv(csv_path, index=False)
+
+    pd.DataFrame(metrics["y_pred"]).to_csv(output_dir + model_name + ".csv", index=False)
 
     return metrics
 
@@ -191,6 +225,7 @@ def evaluate_classifier(model, X, y_true, labels=None):
 
         # ── Raw confusion matrix ──────────────────────────────────────────
         "confusion_matrix":  confusion_matrix(y_true, y_pred, labels=labels),
+        "y_pred" : y_pred
     }
 
 
