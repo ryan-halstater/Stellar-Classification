@@ -27,7 +27,7 @@ import os
 # data cleaning functions
 ###
 
-#convert categorical variables in df to dummy variables
+# convert categorical variables in df to dummy variables
 def cat_to_dummy(df,numericize=True):
     spectral = pd.get_dummies(df['spectral_type'], dtype=int)
     galaxy_pop = pd.get_dummies(df['galaxy_population'], dtype=int)
@@ -43,6 +43,12 @@ def cat_to_dummy(df,numericize=True):
         new_df = new_df.apply(pd.to_numeric)
     
     return new_df
+
+# convert the dummy numbers back into the categories
+def dummy_to_cat(df):
+    class_mapping = {0: 'GALAXY', 1: 'QSO', 2: 'STAR'}
+    df['class'] = df['class'].map(class_mapping)
+    return df
 
 
 ###
