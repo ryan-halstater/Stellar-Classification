@@ -29,15 +29,18 @@ import os
 
 # convert categorical variables in df to dummy variables
 def cat_to_dummy(df,numericize=True):
-    spectral = pd.get_dummies(df['spectral_type'], dtype=int)
-    galaxy_pop = pd.get_dummies(df['galaxy_population'], dtype=int)
+    spectral = pd.get_dummies(df['spectral_type'], dtype=int).astype("category")
+    galaxy_pop = pd.get_dummies(df['galaxy_population'], dtype=int).astype("category")
     
     # Drop original categorical columns and concatenate dummy variables
     new_df = df.drop(columns=['spectral_type', 'galaxy_population'])
     new_df = pd.concat([new_df, spectral, galaxy_pop], axis=1)
+    new_df['spectral_type'] = df['spectral_type'].astype("category")
+    new_df['galaxy_population'] = df['galaxy_population'].astype("category")
 
     class_mapping = {'GALAXY': 0, 'QSO': 1, 'STAR': 2}
-    new_df['class'] = new_df['class'].map(class_mapping)
+    if('class' in new_df.columns):
+        new_df['class'] = new_df['class'].map(class_mapping)
     #reclassify all as numeric, may need to roll this back depending on if models treat as categorical or not
     if(numericize):
         new_df = new_df.apply(pd.to_numeric)
@@ -48,6 +51,27 @@ def cat_to_dummy(df,numericize=True):
 def dummy_to_cat(df):
     class_mapping = {0: 'GALAXY', 1: 'QSO', 2: 'STAR'}
     df['class'] = df['class'].map(class_mapping)
+    return df
+
+def feature_engineer(df):
+    # apply data transformations and feature engineering
+    # convert alpha and delta to radians, then use cos() and sin() to map from the 2D plane to a 3D sphere
+    alpha_rad = np.radians(df['alpha'])
+    delta_rad = np.radians(df['delta'])
+
+    df['X_loc'] = np.cos(delta_rad) * np.cos(alpha_rad)
+    df['Y_loc'] = np.cos(delta_rad) * np.sin(alpha_rad)
+    df['Z_loc'] = np.sin(delta_rad)
+
+    df = df.drop(columns=['alpha', 'delta'])
+
+    # adding in new features that are common subtractions of the different 'ugriz' filters
+
+    df['u_g_diff'] = df['u'] - df['g']
+    df['g_r_diff'] = df['g'] - df['r']
+    df['r_i_diff'] = df['r'] - df['i']
+    df['i_z_diff'] = df['i'] - df['z']
+
     return df
 
 
